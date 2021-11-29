@@ -871,6 +871,9 @@ if redis is not None:
                                        self._redis.response_callbacks,
                                        transaction=redis_buffer_param.get('transaction', True),
                                        buffer_size=self._buffer_size)
+
+            self.redis_ttl = self._parse_config(self.config.get('redis_ttl', {'enable': False, 'ttl': 0}))
+
             if name is None:
                 name = _random_name(11)
             self._name = name
@@ -970,6 +973,11 @@ if redis is not None:
             redis_key = self.redis_key(key)
             r.hset(self._name, key, redis_key)
             r.rpush(redis_key, *values)
+            if self.redis_ttl.get('enable'):
+                r.expire(redis_key, self.redis_ttl.get('ttl'))
+                if r.get(f"{self._name}_spam_expired") is None:
+                    r.set(f"{self._name}_spam_expired", "1", ex=self.redis_ttl.get('ttl'))
+                    r.expire(self._name, self.redis_ttl.get('ttl'))
 
         def size(self):
             return self._redis.hlen(self._name)
@@ -1015,6 +1023,11 @@ if redis is not None:
             redis_key = self.redis_key(key)
             r.hset(self._name, key, redis_key)
             r.sadd(redis_key, *values)
+            if self.redis_ttl.get('enable'):
+                r.expire(redis_key, self.redis_ttl.get('ttl'))
+                if r.get(f"{self._name}_spam_expired") is None:
+                    r.set(f"{self._name}_spam_expired", "1", ex=self.redis_ttl.get('ttl'))
+                    r.expire(self._name, self.redis_ttl.get('ttl'))
 
         @staticmethod
         def _get_len(r, k):
