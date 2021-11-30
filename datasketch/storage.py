@@ -125,7 +125,7 @@ class Storage(ABC):
     @abstractmethod
     def get(self, key):
         '''Get list of values associated with a key
-        
+
         Returns empty list ([]) if `key` is not found
         '''
         pass
@@ -890,6 +890,12 @@ if redis is not None:
         def redis_key(self, key):
             return self._name + key
 
+        def _expire_key(self, r, key):
+            if self.redis_ttl.get('enable'):
+                if r.get(f"{key}__expired") is None:
+                    r.set(f"{key}__expired", "1", ex=self.redis_ttl.get('ttl'))
+                    r.expire(key, self.redis_ttl.get('ttl'))
+
         def _parse_config(self, config):
             cfg = {}
             for key, value in config.items():
@@ -974,10 +980,8 @@ if redis is not None:
             r.hset(self._name, key, redis_key)
             r.rpush(redis_key, *values)
             if self.redis_ttl.get('enable'):
-                r.expire(redis_key, self.redis_ttl.get('ttl'))
-                if r.get(f"{self._name}_spam_expired") is None:
-                    r.set(f"{self._name}_spam_expired", "1", ex=self.redis_ttl.get('ttl'))
-                    r.expire(self._name, self.redis_ttl.get('ttl'))
+                self._expire_key(r, redis_key)
+                self._expire_key(r, self._name)
 
         def size(self):
             return self._redis.hlen(self._name)
@@ -1024,10 +1028,8 @@ if redis is not None:
             r.hset(self._name, key, redis_key)
             r.sadd(redis_key, *values)
             if self.redis_ttl.get('enable'):
-                r.expire(redis_key, self.redis_ttl.get('ttl'))
-                if r.get(f"{self._name}_spam_expired") is None:
-                    r.set(f"{self._name}_spam_expired", "1", ex=self.redis_ttl.get('ttl'))
-                    r.expire(self._name, self.redis_ttl.get('ttl'))
+                self._expire_key(r, redis_key)
+                self._expire_key(r, self._name)
 
         @staticmethod
         def _get_len(r, k):
