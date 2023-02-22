@@ -891,7 +891,6 @@ if redis is not None:
             return self._name + key
 
         def _expire_key(self, r, key):
-            print(f"set expire {self.redis_ttl.get('ttl')} {key}")
             r.expire(key, self.redis_ttl.get('ttl'), lt=True)
 
         def _parse_config(self, config):
